@@ -39,8 +39,10 @@ func Run(kubeconfigPath string,
 	namespace string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
+	platformConfigurationName string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
+	functionMonitorIntervalStr,
 	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
@@ -50,8 +52,10 @@ func Run(kubeconfigPath string,
 		namespace,
 		imagePullSecrets,
 		platformConfigurationPath,
+		platformConfigurationName,
 		functionOperatorNumWorkersStr,
 		functionOperatorResyncIntervalStr,
+		functionMonitorIntervalStr,
 		cronJobStaleResourcesCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr,
@@ -73,8 +77,10 @@ func createController(kubeconfigPath string,
 	namespace string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
+	platformConfigurationName string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
+	functionMonitorIntervalStr string,
 	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
@@ -93,6 +99,11 @@ func createController(kubeconfigPath string,
 	functionOperatorResyncInterval, err := time.ParseDuration(functionOperatorResyncIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse resync interval for function operator")
+	}
+
+	functionMonitorInterval, err := time.ParseDuration(functionMonitorIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse function monitor interval")
 	}
 
 	cronJobStaleResourcesCleanupInterval, err := time.ParseDuration(cronJobStaleResourcesCleanupIntervalStr)
@@ -163,8 +174,10 @@ func createController(kubeconfigPath string,
 		functionresClient,
 		apigatewayresClient,
 		functionOperatorResyncInterval,
+		functionMonitorInterval,
 		cronJobStaleResourcesCleanupInterval,
 		platformConfiguration,
+		platformConfigurationName,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
 		projectOperatorNumWorkers,

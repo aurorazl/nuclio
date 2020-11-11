@@ -103,6 +103,28 @@
                     mainHeaderTitle: 'common:FUNCTIONS'
                 }
             })
+            .state('app.project.api-gateways', {
+                url: '/api-gateways',
+                views: {
+                    project: {
+                        template: '<api-gateways-data-wrapper></api-gateways-data-wrapper>'
+                    }
+                },
+                data: {
+                    pageTitle: 'functions:API_GATEWAYS',
+                    mainHeaderTitle: 'functions:API_GATEWAYS',
+                },
+                resolve: {
+                    kubePlatform: ['$state', '$timeout', 'FunctionsService',
+                        function ($state, $timeout, FunctionsService) {
+                            return $timeout(function () {
+                                if (!FunctionsService.isKubePlatform()) {
+                                    $state.go('app.projects');
+                                }
+                            });
+                        }]
+                }
+            })
             .state('app.project.create-function', {
                 url: '/create-function',
                 views: {

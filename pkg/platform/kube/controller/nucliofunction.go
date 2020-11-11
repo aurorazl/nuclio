@@ -95,14 +95,11 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
-	// only respond to functions which are either waiting for something or are in non-transitional state. We respond to
-	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
-	// properly configured
+	// only respond to functions which are either waiting for something or are in transitional state
 	statesToRespond := []functionconfig.FunctionState{
 		functionconfig.FunctionStateWaitingForResourceConfiguration,
 		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
 		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
-		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateScaledToZero,
 	}
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
@@ -232,11 +229,12 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction, 
 	// whatever the error, try to update the function CR
 	fo.logger.WarnWith("Setting function error", "name", function.Name, "err", err)
 
-	if fo.setFunctionStatus(function, &functionconfig.Status{
+	if setStatusErr := fo.setFunctionStatus(function, &functionconfig.Status{
 		State:   functionconfig.FunctionStateError,
 		Message: errors.GetErrorStackString(err, 10),
-	}) != nil {
-		fo.logger.Warn("Failed to update function on error")
+	}); setStatusErr != nil {
+		fo.logger.Warn("Failed to update function on error",
+			"setStatusErr", errors.Cause(setStatusErr))
 	}
 
 	return err

@@ -357,7 +357,7 @@ func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[st
 	case AuthenticationModeAccessKey:
 
 		// relevant when running on iguazio platform
-		authIngressAnnotations, err = m.compileIguazioSessionVerificationAnnotations("/api/data_sessions/verifications")
+		authIngressAnnotations, err = m.compileIguazioSessionVerificationAnnotations()
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
 		}
@@ -380,28 +380,37 @@ func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error
 		oauth2ProxyURL = spec.Authentication.DexAuth.Oauth2ProxyURL
 	}
 
+	addSignInAnnotation := false
+	if spec.Authentication != nil && spec.Authentication.DexAuth != nil && spec.Authentication.DexAuth.RedirectUnauthorizedToSignIn {
+		addSignInAnnotation = true
+	}
+
 	if oauth2ProxyURL == "" {
 		return nil, errors.New("Oauth2 proxy URL is missing")
 	}
 
 	authURL := fmt.Sprintf("%s/oauth2/auth", oauth2ProxyURL)
-	signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", oauth2ProxyURL)
 
-	return map[string]string{
+	annotations := map[string]string{
 		"nginx.ingress.kubernetes.io/auth-response-headers": "Authorization",
 		"nginx.ingress.kubernetes.io/auth-url":              authURL,
-		"nginx.ingress.kubernetes.io/auth-signin":           signinURL,
 		"nginx.ingress.kubernetes.io/configuration-snippet": `auth_request_set $name_upstream_1 $upstream_cookie__oauth2_proxy_1;
-      
-      access_by_lua_block {
-        if ngx.var.name_upstream_1 ~= "" then
-          ngx.header["Set-Cookie"] = "_oauth2_proxy_1=" .. ngx.var.name_upstream_1 .. ngx.var.auth_cookie:match("(; .*)")
-        end
-      }`,
-	}, nil
+access_by_lua_block {
+  if ngx.var.name_upstream_1 ~= "" then
+    ngx.header["Set-Cookie"] = "_oauth2_proxy_1=" .. ngx.var.name_upstream_1 .. ngx.var.auth_cookie:match("(; .*)")
+  end
+}`,
+	}
+
+	if addSignInAnnotation {
+		signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", oauth2ProxyURL)
+		annotations["nginx.ingress.kubernetes.io/auth-signin"] = signinURL
+	}
+
+	return annotations, nil
 }
 
-func (m *Manager) compileIguazioSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {
+func (m *Manager) compileIguazioSessionVerificationAnnotations() (map[string]string, error) {
 	if m.platformConfiguration.IngressConfig.IguazioAuthURL == "" {
 		return nil, errors.New("No iguazio auth URL configured")
 	}
@@ -413,12 +422,8 @@ func (m *Manager) compileIguazioSessionVerificationAnnotations(sessionVerificati
 	return map[string]string{
 		"nginx.ingress.kubernetes.io/auth-method":           "POST",
 		"nginx.ingress.kubernetes.io/auth-response-headers": "X-Remote-User,X-V3io-Session-Key",
-		"nginx.ingress.kubernetes.io/auth-url": fmt.Sprintf(
-			"https://%s%s",
-			m.platformConfiguration.IngressConfig.IguazioAuthURL,
-			sessionVerificationEndpoint),
-		"nginx.ingress.kubernetes.io/auth-signin": fmt.Sprintf("https://%s/login",
-			m.platformConfiguration.IngressConfig.IguazioSignInURL),
+		"nginx.ingress.kubernetes.io/auth-url":              m.platformConfiguration.IngressConfig.IguazioAuthURL,
+		"nginx.ingress.kubernetes.io/auth-signin":           m.platformConfiguration.IngressConfig.IguazioSignInURL,
 		"nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header authorization \"\";",
 	}, nil
 }
