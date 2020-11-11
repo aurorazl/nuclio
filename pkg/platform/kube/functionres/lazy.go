@@ -1876,14 +1876,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 
 	// ignore HostPath volumes
 	for _, configVolume := range function.Spec.Volumes {
-		if configVolume.Volume.HostPath != nil {
-			lc.logger.WarnWith("Ignoring volume. HostPath volumes are now deprecated",
-				"configVolume",
-				configVolume)
-
-		} else {
-			filteredFunctionVolumes = append(filteredFunctionVolumes, configVolume)
-		}
+		filteredFunctionVolumes = append(filteredFunctionVolumes, configVolume)
 	}
 	function.Spec.Volumes = filteredFunctionVolumes
 
